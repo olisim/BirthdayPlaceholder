@@ -43,8 +43,10 @@
  *
  * @RETURN a boolean value that said if the content should be added to the text field from this function it is always NO because the text changes are handled in explicetly through the 'setTexts' in here
  */
-static NSString* __placeholderText = @"MM/DD/YYYY";
+static NSString* __placeholderText = @"DD.MM.YYYY";
+static NSString* __separator = @".";
 static NSCharacterSet* __nonNumbersSet;
+
 - (BOOL) textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string
 {
     // Make sure that the non number set is lazily initialized
@@ -53,9 +55,12 @@ static NSCharacterSet* __nonNumbersSet;
     
     NSString* preEditString = textField.text;
     __block NSInteger activeLength = 0;
-    NSAttributedString* attributedString = _birthdayTextField.attributedText;
-    [attributedString enumerateAttribute:NSForegroundColorAttributeName inRange:NSMakeRange(0, attributedString.length) options:NSAttributedStringEnumerationLongestEffectiveRangeNotRequired usingBlock:^(id value, NSRange range, BOOL *stop) {
-        
+    NSAttributedString* attributedString = textField.attributedText;
+    [attributedString enumerateAttribute:NSForegroundColorAttributeName
+                                 inRange:NSMakeRange(0, attributedString.length)
+                                 options:NSAttributedStringEnumerationLongestEffectiveRangeNotRequired
+                              usingBlock:^(id value, NSRange range, BOOL *stop) {
+
         if ([value isKindOfClass:[UIColor class]])
         {
             CGFloat white;
@@ -68,10 +73,10 @@ static NSCharacterSet* __nonNumbersSet;
     
     // If there is no pseudo placeholder text then that means it has reached the end
     if (activeLength == 0 &&
-        _birthdayTextField.text.length == 10 &&
-        ![_birthdayTextField.text isEqualToString:__placeholderText])
+        textField.text.length == 10 &&
+        ![textField.text isEqualToString:__placeholderText])
     {
-        activeLength = _birthdayTextField.text.length;
+        activeLength = textField.text.length;
     }
     
     // Perform the edits as long as the birthday text length limit hasnt been reached
@@ -85,54 +90,23 @@ static NSCharacterSet* __nonNumbersSet;
                 // Determine if you need to just delete the last character or
                 // the last two characterse (delete / as well)
                 //----
-                NSInteger deleteDelta = [[textField.text substringWithRange:NSMakeRange(activeLength-1, 1)] isEqualToString:@"/"] ? 2 : 1;
+                NSInteger deleteDelta = [[textField.text substringWithRange:NSMakeRange(activeLength-1, 1)] isEqualToString:__separator] ? 2 : 1;
                 if (activeLength <= deleteDelta)
                 {
-                    [_birthdayTextField setText:@""];
+                    [textField setText:@""];
                     return NO;
                 }
                 else
-                    [_birthdayTextField setText:[NSString stringWithFormat:@"%@", [_birthdayTextField.text substringToIndex:(activeLength - deleteDelta)]]];
+                    [textField setText:[NSString stringWithFormat:@"%@", [textField.text substringToIndex:(activeLength - deleteDelta)]]];
             }
         }
         else if ([string rangeOfCharacterFromSet:__nonNumbersSet].location == NSNotFound)
         {
-            // Enter here if the input was a numbe
+            // Enter here if the input was a number
             if (activeLength < 2)
             {
-                // Check to make sure that the month field is 1-12
-                NSInteger month = [[textField.text stringByAppendingString:string] integerValue];
-                if (month <= 12 && month >= 0)
-                {
-                    if (textField.text.length == 0)
-                    {
-                        // Enter here to handle the first value being input
-                        if ([string integerValue] > 1)
-                        {
-                            //----
-                            // Enter here because you need to add the prefix 0 since they enetered a digit 2-9
-                            // and that wont work as the first digit in a month
-                            //----
-                            [_birthdayTextField setText:[NSString stringWithFormat:@"0%@/", string]];
-                        }
-                        else
-                            [_birthdayTextField setText:[NSString stringWithFormat:@"%@", string]];
-                    }
-                    else
-                    {
-                        //-----
-                        // Enter here if entering the second digit of the month
-                        // Need to make sure it reacts properly based off of the first digit in the month
-                        //-----
-                        if ([[textField.text substringToIndex:1] isEqualToString:@"0"] || [string integerValue] <= 2)
-                            [textField setText:[NSString stringWithFormat:@"%@%@/", [textField.text substringToIndex:activeLength], string]];
-                    }
-                }
-            }
-            else if (activeLength < 6)
-            {
                 // Handle the day aspect of the birthday input
-                if (activeLength == 3)
+                if (activeLength == 0)
                 {
                     //----
                     // Only allow 0-3 in the first day spot
@@ -141,17 +115,44 @@ static NSCharacterSet* __nonNumbersSet;
                     if ([string isEqualToString:@"0"] || [string isEqualToString:@"1"] ||
                         [string isEqualToString:@"2"] || [string isEqualToString:@"3"])
                     {
-                        [_birthdayTextField setText:[NSString stringWithFormat:@"%@%@", [_birthdayTextField.text substringToIndex:activeLength], string]];
+                        [textField setText:[NSString stringWithFormat:@"%@%@", [textField.text substringToIndex:activeLength], string]];
                     }
                     else
                     {
-                        [_birthdayTextField setText:[NSString stringWithFormat:@"%@0%@/", [_birthdayTextField.text substringToIndex:activeLength], string]];
+                        [textField setText:[NSString stringWithFormat:@"%@0%@%@", [textField.text substringToIndex:activeLength], string, __separator]];
                     }
                 }
-                else if (activeLength == 4)
+                else if (activeLength == 1)
                 {
-                    [_birthdayTextField setText:[NSString stringWithFormat:@"%@%@/", [_birthdayTextField.text substringToIndex:activeLength], string]];
+                    [textField setText:[NSString stringWithFormat:@"%@%@%@", [textField.text substringToIndex:activeLength], string, __separator]];
                 }
+            }
+            else if (activeLength < 6)
+            {
+                    if (activeLength == 3)
+                    {
+                        // Enter here to handle the first value being input
+                        if ([string integerValue] > 1)
+                        {
+                            //----
+                            // Enter here because you need to add the prefix 0 since they enetered a digit 2-9
+                            // and that wont work as the first digit in a month
+                            //----
+                            [textField setText:[NSString stringWithFormat:@"%@0%@%@", [textField.text substringToIndex:activeLength], string, __separator]];
+                        }
+                        else
+                            [textField setText:[NSString stringWithFormat:@"%@%@", [textField.text substringToIndex:activeLength], string]];
+
+                    }
+                    else
+                    {
+                        //-----
+                        // Enter here if entering the second digit of the month
+                        // Need to make sure it reacts properly based off of the first digit in the month
+                        //-----
+                        if ([[textField.text substringWithRange:NSMakeRange(activeLength-1, 1)] isEqualToString:@"0"] || [string integerValue] <= 2)
+                            [textField setText:[NSString stringWithFormat:@"%@%@%@", [textField.text substringToIndex:activeLength], string, __separator]];
+                    }
             }
             else if (activeLength < 11)
             {
@@ -166,7 +167,7 @@ static NSCharacterSet* __nonNumbersSet;
                     addText = YES;
                 
                 if (addText)
-                    [_birthdayTextField setText:[NSString stringWithFormat:@"%@%@", [_birthdayTextField.text substringToIndex:activeLength], string]];
+                    [textField setText:[NSString stringWithFormat:@"%@%@", [textField.text substringToIndex:activeLength], string]];
             }
         }
         
